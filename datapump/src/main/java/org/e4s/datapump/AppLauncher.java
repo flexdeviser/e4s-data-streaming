@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -158,6 +159,8 @@ public class AppLauncher {
     public void init() {
         // Setting Spring Boot SetTimeZone
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        final Calendar calendar = Calendar.getInstance();
+        LOG.info("Application running with TZ: {}", calendar.getTimeZone().getID());
     }
 
     @PreDestroy
