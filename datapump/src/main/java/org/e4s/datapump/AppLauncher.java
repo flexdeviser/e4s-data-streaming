@@ -3,9 +3,15 @@ package org.e4s.datapump;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -13,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import org.e4s.model.MeterRead;
@@ -55,12 +62,23 @@ public class AppLauncher {
      */
     @Bean
     public ApplicationRunner runner() {
-        Logger LOG = LoggerFactory.getLogger("Kafka.Producer.Runner");
+        final Logger LOG = LoggerFactory.getLogger("Kafka.Producer.Runner");
+
         return args -> {
             List<UUID> ids = new ArrayList<>();
             // generate 10 uuid
             IntStream.rangeClosed(0, 9).forEach(i -> ids.add(i, UUID.nameUUIDFromBytes(String.valueOf(i).getBytes())));
             final Random random = new Random();
+
+            final LocalDate localDate = LocalDate.now();
+            //Local date time
+            final LocalDateTime startOfDay = localDate.atStartOfDay();
+
+            final long startMilli = startOfDay.toEpochSecond(ZoneOffset.UTC) * 1000;
+
+            final Map<UUID, Long> latestTs = new HashMap<>();
+
+
             // generate message and put on queue
             messageMaker.submit(() -> {
 
@@ -69,9 +87,21 @@ public class AppLauncher {
                     // get random id
                     final int randomElementIndex = ThreadLocalRandom.current().nextInt(ids.size()) % ids.size();
 
+                    Long lastTs = latestTs.get(ids.get(randomElementIndex));
+                    if (lastTs == null) {
+                        lastTs = startMilli;
+                    } else {
+                        lastTs += 60 * 1000 * 5;
+                    }
+
+                    // update
+                    latestTs.put(ids.get(randomElementIndex), lastTs);
+
                     final MessageRequest request = new MessageRequest(ids.get(randomElementIndex), new MeterRead(
                             random.ints(220, 260).findFirst().getAsInt(),
-                            random.ints(1, 4).findFirst().getAsInt()));
+                            random.ints(1, 4).findFirst().getAsInt(),
+                            lastTs
+                    ));
 
                     while (!inputQueue.offer(request)) {
                         try {
@@ -122,6 +152,12 @@ public class AppLauncher {
                 }
             });
         };
+    }
+
+    @PostConstruct
+    public void init() {
+        // Setting Spring Boot SetTimeZone
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
     @PreDestroy
