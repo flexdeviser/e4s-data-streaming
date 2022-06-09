@@ -1,0 +1,7 @@
+spring:
+  kafka:
+    bootstrap-servers: "10.0.1.11:9094"
+    topic: "meter-reading"
+e4s:
+  application:
+    id: "e4s-streams-app"

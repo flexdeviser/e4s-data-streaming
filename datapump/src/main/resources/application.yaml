@@ -1,0 +1,4 @@
+spring:
+  kafka:
+    bootstrap-servers: "10.0.1.11:9094"
+    topic: "meter-reading"
